@@ -1,43 +1,68 @@
 package com.example
 
-import android.content.pm.ActivityInfo
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.example.presentation.designsystem.AppColors
-import com.example.presentation.navigation.AppNavigation
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
+import com.example.presentation.navigation.LiveNavGraph
+import com.example.presentation.viewmodel.LiveViewModel
+import com.example.ui.theme.DarkBg
+import com.example.ui.theme.LiveCastTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         enableEdgeToEdge()
 
-        val customDarkScheme = darkColorScheme(
-            primary = AppColors.AccentGold,
-            onPrimary = Color.Black,
-            secondary = AppColors.AccentCyan,
-            background = AppColors.DarkBackground,
-            surface = AppColors.DarkSurface,
-            surfaceVariant = AppColors.DarkSurfaceVariant,
-            onBackground = AppColors.TextPrimary,
-            onSurface = AppColors.TextPrimary
-        )
-
         setContent {
-            MaterialTheme(colorScheme = customDarkScheme) {
+            LiveCastTheme {
+                val navController = rememberNavController()
+                val liveViewModel: LiveViewModel = viewModel()
+
+                // Permission Launcher for Camera & Audio & Notification
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) { /* Permissions result handled gracefully in UI */ }
+
+                LaunchedEffect(Unit) {
+                    val permissionsToRequest = mutableListOf(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO
+                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+
+                    val missingPermissions = permissionsToRequest.filter { perm ->
+                        ContextCompat.checkSelfPermission(this@MainActivity, perm) != PackageManager.PERMISSION_GRANTED
+                    }
+
+                    if (missingPermissions.isNotEmpty()) {
+                        permissionLauncher.launch(missingPermissions.toTypedArray())
+                    }
+                }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = AppColors.DarkBackground
+                    color = DarkBg
                 ) {
-                    AppNavigation()
+                    LiveNavGraph(
+                        navController = navController,
+                        viewModel = liveViewModel
+                    )
                 }
             }
         }

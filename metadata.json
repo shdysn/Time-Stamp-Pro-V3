@@ -1,6 +1,6 @@
 {
-  "name": "Timestamp Camera Pro",
-  "description": "Professional timestamp and geotag camera with custom watermarks, GPS coordinates, compass, address, and industry templates.",
+  "name": "LiveCast Studio",
+  "description": "Comprehensive Android Live Streaming Studio for Facebook & YouTube with real-time camera and screen sharing, controls, chat, and stream history.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

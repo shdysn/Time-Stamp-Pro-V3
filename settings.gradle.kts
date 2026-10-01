@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Timestamp Camera Pro"
+rootProject.name = "LiveCast Studio"
 
 include(":app")

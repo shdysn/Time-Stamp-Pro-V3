@@ -5,9 +5,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [MediaEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [StreamHistoryEntity::class],
+    version = 1,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun mediaDao(): MediaDao
+    abstract fun streamHistoryDao(): StreamHistoryDao
 
     companion object {
         @Volatile
@@ -18,10 +22,9 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "timestamp_camera_database"
-                )
-                    .fallbackToDestructiveMigration(false)
-                    .build()
+                    "livecast_studio_db"
+                ).fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }
