@@ -175,24 +175,18 @@ class CameraManager(private val context: Context) {
         camera?.cameraControl?.startFocusAndMetering(action)
     }
 
-    fun setTargetRotation(degrees: Int) {
-        val rotation = when (degrees) {
-            90 -> android.view.Surface.ROTATION_90
-            180 -> android.view.Surface.ROTATION_180
-            270 -> android.view.Surface.ROTATION_270
-            else -> android.view.Surface.ROTATION_0
-        }
+    fun setTargetRotation(surfaceRotation: Int) {
         try {
-            imageCapture?.targetRotation = rotation
+            imageCapture?.targetRotation = surfaceRotation
         } catch (_: Exception) {}
     }
 
-    suspend fun capturePhoto(targetOrientationDegrees: Int = 0): Bitmap = suspendCancellableCoroutine { continuation ->
-        setTargetRotation(targetOrientationDegrees)
+    suspend fun capturePhoto(targetSurfaceRotation: Int = android.view.Surface.ROTATION_0): Bitmap = suspendCancellableCoroutine { continuation ->
+        setTargetRotation(targetSurfaceRotation)
         val capture = imageCapture
         if (capture == null || !_isCameraAvailable.value) {
             // Return high quality simulated viewfinder snapshot (great for emulator testing)
-            val fallbackBitmap = generateFallbackSnapshot(targetOrientationDegrees)
+            val fallbackBitmap = generateFallbackSnapshot(targetSurfaceRotation)
             continuation.resume(fallbackBitmap)
             return@suspendCancellableCoroutine
         }
@@ -212,21 +206,21 @@ class CameraManager(private val context: Context) {
                         }
                         continuation.resume(correctedBitmap)
                     } catch (e: Exception) {
-                        continuation.resume(generateFallbackSnapshot(targetOrientationDegrees))
+                        continuation.resume(generateFallbackSnapshot(targetSurfaceRotation))
                     } finally {
                         image.close()
                     }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
-                    continuation.resume(generateFallbackSnapshot(targetOrientationDegrees))
+                    continuation.resume(generateFallbackSnapshot(targetSurfaceRotation))
                 }
             }
         )
     }
 
-    private fun generateFallbackSnapshot(orientationDegrees: Int = 0): Bitmap {
-        val isLandscape = orientationDegrees == 90 || orientationDegrees == 270
+    private fun generateFallbackSnapshot(surfaceRotation: Int = android.view.Surface.ROTATION_0): Bitmap {
+        val isLandscape = surfaceRotation == android.view.Surface.ROTATION_90 || surfaceRotation == android.view.Surface.ROTATION_270
         val width = if (isLandscape) 1280 else 960
         val height = if (isLandscape) 960 else 1280
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)

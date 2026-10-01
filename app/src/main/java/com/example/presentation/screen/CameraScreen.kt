@@ -213,11 +213,11 @@ fun CameraScreen(
                             .rotate(animatedIconRotation)
                     )
                     val orientationLabel = when (uiState.settings.stampOrientation) {
-                        StampOrientation.AUTO -> "Auto (${orientAngle}°)"
-                        StampOrientation.PORTRAIT_0 -> "0° Portrait"
-                        StampOrientation.LANDSCAPE_90 -> "90° Land"
-                        StampOrientation.PORTRAIT_180 -> "180° Invert"
-                        StampOrientation.LANDSCAPE_270 -> "270° Land"
+                        StampOrientation.AUTO -> if (orientAngle == 0) "Auto" else "Auto (${orientAngle}°)"
+                        StampOrientation.PORTRAIT_0 -> "Locked 0°"
+                        StampOrientation.LANDSCAPE_90 -> "Locked 90°"
+                        StampOrientation.PORTRAIT_180 -> "Locked 180°"
+                        StampOrientation.LANDSCAPE_270 -> "Locked 270°"
                     }
                     Text(
                         text = orientationLabel,

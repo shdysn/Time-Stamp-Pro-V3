@@ -54,6 +54,16 @@ enum class StampOrientation(val displayName: String, val degrees: Int?) {
     fun resolveDegrees(sensorDegrees: Int): Int {
         return degrees ?: sensorDegrees
     }
+
+    fun resolveSurfaceRotation(sensorSurfaceRotation: Int): Int {
+        return when (degrees) {
+            90 -> android.view.Surface.ROTATION_90
+            180 -> android.view.Surface.ROTATION_180
+            270 -> android.view.Surface.ROTATION_270
+            0 -> android.view.Surface.ROTATION_0
+            else -> sensorSurfaceRotation
+        }
+    }
 }
 
 data class UserSettings(
