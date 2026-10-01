@@ -32,10 +32,15 @@ class OrientationManager(context: Context) {
             //             Surface rotation = ROTATION_180, UI HUD rotation = 180°
             // - else:     Phone held in upright portrait.
             //             Surface rotation = ROTATION_0, UI HUD rotation = 0°
+            // Stable angle thresholds:
+            // Portrait has a generous ±60° range (301° to 59°) so normal handheld tilt never triggers landscape
+            // Landscape 90° (shutter right): 210° to 300°
+            // Reverse Landscape 270° (shutter left): 60° to 150°
+            // Reverse Portrait 180°: 151° to 209°
             val (surfRot, uiDegrees) = when (orientation) {
-                in 225..314 -> Surface.ROTATION_90 to 90
-                in 45..134 -> Surface.ROTATION_270 to 270
-                in 135..224 -> Surface.ROTATION_180 to 180
+                in 210..300 -> Surface.ROTATION_90 to 90
+                in 60..150 -> Surface.ROTATION_270 to 270
+                in 151..209 -> Surface.ROTATION_180 to 180
                 else -> Surface.ROTATION_0 to 0
             }
 

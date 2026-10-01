@@ -1,8 +1,6 @@
 package com.example.presentation.components
 
 import android.util.Log
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,10 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,13 +41,7 @@ fun TimestampOverlayView(
     orientationDegrees: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    Log.d(TAG, "Rendering live preview overlay for template: ${settings.templateType}, orientation: $orientationDegrees")
-
-    val animatedRotation by animateFloatAsState(
-        targetValue = orientationDegrees.toFloat(),
-        animationSpec = tween(durationMillis = 280),
-        label = "overlay_rotation"
-    )
+    Log.d(TAG, "Rendering live preview overlay for template: ${settings.templateType}")
 
     val boxAlignment = when (settings.stampPosition) {
         StampPosition.TOP_LEFT -> Alignment.TopStart
@@ -64,14 +54,13 @@ fun TimestampOverlayView(
     val isBanner = settings.templateType == StampTemplateType.FULL_BANNER || settings.stampPosition == StampPosition.BOTTOM_BANNER
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. Optional Custom Text Banner at top (oriented with phone/setting rotation)
+        // 1. Optional Custom Text Banner at top - always horizontal, readable, and clean
         if (settings.isCustomTextEnabled && settings.customText.isNotBlank()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .padding(top = 70.dp, start = 20.dp, end = 20.dp)
-                    .rotate(animatedRotation),
+                    .padding(top = 75.dp, start = 20.dp, end = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
@@ -93,69 +82,73 @@ fun TimestampOverlayView(
             }
         }
 
-        // 2. Separate Distinct Stamp Composables via Exhaustive when (oriented with phone/setting rotation)
+        // 2. Separate Distinct Stamp Composables - always horizontal, clean, and positioned above the bottom control bar
         if (settings.isStampVisible) {
-            val paddingDp = if (isBanner) 0.dp else if (orientationDegrees == 90 || orientationDegrees == 270) 28.dp else 16.dp
+            val isTopPos = settings.stampPosition == StampPosition.TOP_LEFT || settings.stampPosition == StampPosition.TOP_RIGHT
+            val topPad = if (isTopPos) 80.dp else 16.dp
+            val bottomPad = if (isBanner) 110.dp else 125.dp
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingDp),
+                    .padding(
+                        start = if (isBanner) 0.dp else 16.dp,
+                        end = if (isBanner) 0.dp else 16.dp,
+                        top = topPad,
+                        bottom = if (isTopPos) 16.dp else bottomPad
+                    ),
                 contentAlignment = if (isBanner) Alignment.BottomCenter else boxAlignment
             ) {
-                Box(
-                    modifier = Modifier.rotate(animatedRotation)
-                ) {
-                    when (settings.templateType) {
-                        StampTemplateType.CLASSIC_CARD -> {
-                            ClassicCardStamp(
-                                settings = settings,
-                                location = location,
-                                heading = heading,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                when (settings.templateType) {
+                    StampTemplateType.CLASSIC_CARD -> {
+                        ClassicCardStamp(
+                            settings = settings,
+                            location = location,
+                            heading = heading,
+                            currentTimeMillis = currentTimeMillis
+                        )
+                    }
 
-                        StampTemplateType.MODERN_MINIMAL -> {
-                            ModernMinimalStamp(
-                                settings = settings,
-                                location = location,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                    StampTemplateType.MODERN_MINIMAL -> {
+                        ModernMinimalStamp(
+                            settings = settings,
+                            location = location,
+                            currentTimeMillis = currentTimeMillis
+                        )
+                    }
 
-                        StampTemplateType.CYBER_TECH_HUD -> {
-                            CyberTechHudStamp(
-                                settings = settings,
-                                location = location,
-                                heading = heading,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                    StampTemplateType.CYBER_TECH_HUD -> {
+                        CyberTechHudStamp(
+                            settings = settings,
+                            location = location,
+                            heading = heading,
+                            currentTimeMillis = currentTimeMillis
+                        )
+                    }
 
-                        StampTemplateType.FRAMED_OUTLINE -> {
-                            FramedOutlineStamp(
-                                settings = settings,
-                                location = location,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                    StampTemplateType.FRAMED_OUTLINE -> {
+                        FramedOutlineStamp(
+                            settings = settings,
+                            location = location,
+                            currentTimeMillis = currentTimeMillis
+                        )
+                    }
 
-                        StampTemplateType.COMPACT_PILL -> {
-                            CompactPillStamp(
-                                settings = settings,
-                                location = location,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                    StampTemplateType.COMPACT_PILL -> {
+                        CompactPillStamp(
+                            settings = settings,
+                            location = location,
+                            currentTimeMillis = currentTimeMillis
+                        )
+                    }
 
-                        StampTemplateType.FULL_BANNER -> {
-                            FullBannerStamp(
-                                settings = settings,
-                                location = location,
-                                heading = heading,
-                                currentTimeMillis = currentTimeMillis
-                            )
-                        }
+                    StampTemplateType.FULL_BANNER -> {
+                        FullBannerStamp(
+                            settings = settings,
+                            location = location,
+                            heading = heading,
+                            currentTimeMillis = currentTimeMillis
+                        )
                     }
                 }
             }

@@ -190,8 +190,8 @@ fun CameraScreen(
                 onClick = { viewModel.cycleStampOrientation() },
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Black.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
-                modifier = Modifier.height(40.dp)
+                border = BorderStroke(1.dp, if (uiState.settings.stampOrientation == StampOrientation.AUTO) AppColors.AccentGold.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.25f)),
+                modifier = Modifier.height(38.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -206,18 +206,18 @@ fun CameraScreen(
                     )
                     Icon(
                         imageVector = Icons.Default.ScreenRotation,
-                        contentDescription = "Cycle Orientation",
+                        contentDescription = "Orientation Mode",
                         tint = if (uiState.settings.stampOrientation == StampOrientation.AUTO) AppColors.AccentGold else AppColors.AccentCyan,
                         modifier = Modifier
                             .size(18.dp)
                             .rotate(animatedIconRotation)
                     )
                     val orientationLabel = when (uiState.settings.stampOrientation) {
-                        StampOrientation.AUTO -> if (orientAngle == 0) "Auto" else "Auto (${orientAngle}°)"
-                        StampOrientation.PORTRAIT_0 -> "Locked 0°"
-                        StampOrientation.LANDSCAPE_90 -> "Locked 90°"
-                        StampOrientation.PORTRAIT_180 -> "Locked 180°"
-                        StampOrientation.LANDSCAPE_270 -> "Locked 270°"
+                        StampOrientation.AUTO -> "Auto"
+                        StampOrientation.PORTRAIT_0 -> "0° Portrait"
+                        StampOrientation.LANDSCAPE_90 -> "90° Land"
+                        StampOrientation.PORTRAIT_180 -> "180° Invert"
+                        StampOrientation.LANDSCAPE_270 -> "270° Land"
                     }
                     Text(
                         text = orientationLabel,
