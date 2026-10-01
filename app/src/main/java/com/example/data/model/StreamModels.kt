@@ -91,6 +91,8 @@ data class ConnectedAccount(
     val isConnected: Boolean,
     val streamKey: String = "",
     val rtmpServerUrl: String = "",
+    val apiAccessToken: String = "",
+    val isApiVerified: Boolean = false,
     val tokenExpiry: String = "Active",
     val availableDestinations: List<String> = emptyList(),
     val selectedDestination: String = ""

@@ -575,9 +575,11 @@ fun YouTubeLiveScreen(
             initialDestination = ytAccount.selectedDestination,
             initialStreamKey = ytAccount.streamKey,
             initialRtmpUrl = ytAccount.rtmpServerUrl,
+            initialApiToken = ytAccount.apiAccessToken,
+            accountManager = viewModel.accountManager,
             onDismiss = { showEditAccountDialog = false },
-            onSave = { name, handle, dest, key, rtmp ->
-                viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+            onSave = { name, handle, dest, key, rtmp, apiToken ->
+                viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp, apiToken)
                 viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
                 showEditAccountDialog = false
             }

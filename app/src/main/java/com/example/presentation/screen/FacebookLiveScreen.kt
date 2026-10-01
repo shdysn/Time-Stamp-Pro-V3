@@ -552,9 +552,11 @@ fun FacebookLiveScreen(
             initialDestination = fbAccount.selectedDestination,
             initialStreamKey = fbAccount.streamKey,
             initialRtmpUrl = fbAccount.rtmpServerUrl,
+            initialApiToken = fbAccount.apiAccessToken,
+            accountManager = viewModel.accountManager,
             onDismiss = { showEditAccountDialog = false },
-            onSave = { name, handle, dest, key, rtmp ->
-                viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+            onSave = { name, handle, dest, key, rtmp, apiToken ->
+                viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp, apiToken)
                 viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
                 showEditAccountDialog = false
             }

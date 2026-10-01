@@ -618,13 +618,15 @@ fun SettingsScreen(
             initialDestination = acc.selectedDestination,
             initialStreamKey = acc.streamKey,
             initialRtmpUrl = acc.rtmpServerUrl,
+            initialApiToken = acc.apiAccessToken,
+            accountManager = viewModel.accountManager,
             onDismiss = { editingPlatform = null },
-            onSave = { name, handle, dest, key, rtmp ->
+            onSave = { name, handle, dest, key, rtmp, apiToken ->
                 if (platform == StreamPlatform.FACEBOOK) {
-                    viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+                    viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp, apiToken)
                     viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
                 } else {
-                    viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+                    viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp, apiToken)
                     viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
                 }
                 editingPlatform = null

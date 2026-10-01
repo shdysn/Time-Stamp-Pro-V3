@@ -16,10 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -27,16 +29,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,14 +55,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.backend.LiveAccountManager
 import com.example.data.model.StreamPlatform
-import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceBorder
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.FacebookBlue
 import com.example.ui.theme.LiveCyan
+import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.YouTubeRed
+import kotlinx.coroutines.launch
 
 @Composable
 fun CustomAccountDialog(
@@ -66,13 +74,16 @@ fun CustomAccountDialog(
     initialDestination: String,
     initialStreamKey: String,
     initialRtmpUrl: String,
+    initialApiToken: String = "",
+    accountManager: LiveAccountManager? = null,
     onDismiss: () -> Unit,
-    onSave: (name: String, handle: String, destination: String, streamKey: String, rtmpUrl: String) -> Unit
+    onSave: (name: String, handle: String, destination: String, streamKey: String, rtmpUrl: String, apiToken: String) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var handle by remember { mutableStateOf(initialHandle) }
     var destination by remember { mutableStateOf(initialDestination) }
     var streamKey by remember { mutableStateOf(initialStreamKey) }
+    var apiToken by remember { mutableStateOf(initialApiToken) }
     var rtmpUrl by remember {
         mutableStateOf(
             if (initialRtmpUrl.isNotBlank()) initialRtmpUrl
@@ -80,8 +91,14 @@ fun CustomAccountDialog(
             else "rtmp://a.rtmp.youtube.com/live2"
         )
     }
-    var showStreamKey by remember { mutableStateOf(false) }
 
+    var showStreamKey by remember { mutableStateOf(false) }
+    var showApiToken by remember { mutableStateOf(false) }
+    var isVerifying by remember { mutableStateOf(false) }
+    var verificationResult by remember { mutableStateOf<String?>(null) }
+    var verificationSuccess by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
     val isFacebook = platform == StreamPlatform.FACEBOOK
     val brandColor = if (isFacebook) FacebookBlue else YouTubeRed
 
@@ -105,8 +122,8 @@ fun CustomAccountDialog(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = if (isFacebook) "Add Your Facebook Login" else "Add Your YouTube Login",
-                    fontSize = 18.sp,
+                    text = if (isFacebook) "Facebook Real API & Account" else "YouTube Real API & Channel",
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -119,7 +136,7 @@ fun CustomAccountDialog(
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = "Enter your personal account or channel details and stream key to broadcast live directly.",
+                    text = "Configure your official Meta / Google API token or live stream credentials to broadcast live.",
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1),
                     lineHeight = 16.sp
@@ -129,7 +146,7 @@ fun CustomAccountDialog(
 
                 // Account Name
                 Text(
-                    text = if (isFacebook) "Your Facebook Name" else "Your Channel Name",
+                    text = if (isFacebook) "Facebook Name / Page Title" else "YouTube Channel Name",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = LiveCyan
@@ -138,7 +155,7 @@ fun CustomAccountDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = { Text(if (isFacebook) "e.g. John Doe" else "e.g. My Gaming Channel", color = Color(0xFF64748B)) },
+                    placeholder = { Text(if (isFacebook) "e.g. John Doe / My Page" else "e.g. Alex Tech Studio", color = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth().testTag("custom_account_name_input"),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -150,7 +167,7 @@ fun CustomAccountDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Username / Handle
                 Text(
@@ -163,7 +180,7 @@ fun CustomAccountDialog(
                 OutlinedTextField(
                     value = handle,
                     onValueChange = { handle = it },
-                    placeholder = { Text("e.g. @your_username", color = Color(0xFF64748B)) },
+                    placeholder = { Text("e.g. @your_channel", color = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth().testTag("custom_account_handle_input"),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -175,11 +192,11 @@ fun CustomAccountDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Page or Destination
                 Text(
-                    text = if (isFacebook) "Page or Timeline Destination" else "Primary Broadcast Destination",
+                    text = if (isFacebook) "Page or Timeline Destination" else "Live Destination / Page",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = LiveCyan
@@ -188,7 +205,7 @@ fun CustomAccountDialog(
                 OutlinedTextField(
                     value = destination,
                     onValueChange = { destination = it },
-                    placeholder = { Text(if (isFacebook) "e.g. My Official Creator Page" else "e.g. Main YouTube Channel", color = Color(0xFF64748B)) },
+                    placeholder = { Text("e.g. Creator Page / Main Channel", color = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth().testTag("custom_destination_input"),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -200,7 +217,117 @@ fun CustomAccountDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // API Access Token Field
+                Text(
+                    text = if (isFacebook) "Meta Graph API Access Token" else "Google / YouTube OAuth Access Token",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LiveCyan
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = apiToken,
+                    onValueChange = { apiToken = it },
+                    placeholder = { Text(if (isFacebook) "EAAB... (Facebook Graph Token)" else "ya29... (Google OAuth Token)", color = Color(0xFF64748B)) },
+                    modifier = Modifier.fillMaxWidth().testTag("api_token_input"),
+                    shape = RoundedCornerShape(10.dp),
+                    visualTransformation = if (showApiToken) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { showApiToken = !showApiToken }) {
+                            Icon(
+                                imageVector = if (showApiToken) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Toggle Visibility",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = brandColor,
+                        unfocusedBorderColor = DarkSurfaceBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Test API Button
+                if (accountManager != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (apiToken.isNotBlank()) {
+                                isVerifying = true
+                                verificationResult = null
+                                coroutineScope.launch {
+                                    val result = if (isFacebook) {
+                                        accountManager.verifyFacebookApiToken(apiToken.trim())
+                                    } else {
+                                        accountManager.verifyYouTubeApiToken(apiToken.trim())
+                                    }
+                                    isVerifying = false
+                                    if (result.isSuccess) {
+                                        verificationSuccess = true
+                                        verificationResult = result.getOrNull() ?: "Verified Successfully!"
+                                        if (isFacebook) {
+                                            name = accountManager.facebookAccount.value.accountName
+                                            destination = accountManager.facebookAccount.value.selectedDestination
+                                        } else {
+                                            name = accountManager.youtubeAccount.value.accountName
+                                            destination = accountManager.youtubeAccount.value.selectedDestination
+                                        }
+                                    } else {
+                                        verificationSuccess = false
+                                        verificationResult = result.exceptionOrNull()?.localizedMessage ?: "Verification Failed"
+                                    }
+                                }
+                            } else {
+                                verificationSuccess = false
+                                verificationResult = "Please paste an API token to test"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(40.dp).testTag("verify_api_btn"),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (verificationSuccess) StatusGreen else LiveCyan)
+                    ) {
+                        if (isVerifying) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = LiveCyan, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Pinging API...", fontSize = 12.sp, color = LiveCyan)
+                        } else {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = if (verificationSuccess) StatusGreen else LiveCyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (verificationSuccess) "API Verified & Connected" else "Test & Verify Real API Connection",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (verificationSuccess) StatusGreen else LiveCyan
+                            )
+                        }
+                    }
+
+                    verificationResult?.let { msg ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (verificationSuccess) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = if (verificationSuccess) StatusGreen else Color(0xFFEF4444),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = msg,
+                                fontSize = 11.sp,
+                                color = if (verificationSuccess) StatusGreen else Color(0xFFEF4444)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Stream Key
                 Text(
@@ -213,7 +340,7 @@ fun CustomAccountDialog(
                 OutlinedTextField(
                     value = streamKey,
                     onValueChange = { streamKey = it },
-                    placeholder = { Text("Paste stream key from Producer/Studio", color = Color(0xFF64748B)) },
+                    placeholder = { Text("e.g. live stream key", color = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth().testTag("custom_stream_key_input"),
                     shape = RoundedCornerShape(10.dp),
                     visualTransformation = if (showStreamKey) VisualTransformation.None else PasswordVisualTransformation(),
@@ -238,25 +365,57 @@ fun CustomAccountDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Help text
+                // RTMP Server URL
+                Text(
+                    text = "RTMP Server Ingestion URL",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LiveCyan
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = rtmpUrl,
+                    onValueChange = { rtmpUrl = it },
+                    placeholder = { Text("RTMP Server URL", color = Color(0xFF64748B)) },
+                    modifier = Modifier.fillMaxWidth().testTag("custom_rtmp_url_input"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = brandColor,
+                        unfocusedBorderColor = DarkSurfaceBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Helpful API Guidance Box
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = LiveCyan, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, contentDescription = null, tint = LiveCyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isFacebook) "Facebook Graph API Setup" else "Google YouTube API Setup",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LiveCyan
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (isFacebook)
-                                "Get your stream key at facebook.com/live/producer"
+                                "Get your user/page token from developers.facebook.com/tools/explorer with 'publish_video' permission, or copy stream key from facebook.com/live/producer."
                             else
-                                "Get your stream key at studio.youtube.com (Live Dashboard)",
+                                "Google OAuth is active for gen-lang-client-0549492621 with YouTube Live scopes. Paste your access token or copy stream key from studio.youtube.com.",
                             fontSize = 11.sp,
-                            color = Color(0xFFCBD5E1)
+                            color = Color(0xFFCBD5E1),
+                            lineHeight = 15.sp
                         )
                     }
                 }
@@ -265,13 +424,13 @@ fun CustomAccountDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(name.trim(), handle.trim(), destination.trim(), streamKey.trim(), rtmpUrl.trim())
+                    onSave(name.trim(), handle.trim(), destination.trim(), streamKey.trim(), rtmpUrl.trim(), apiToken.trim())
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = brandColor),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.testTag("save_custom_account_btn")
             ) {
-                Text("Save & Connect", fontWeight = FontWeight.Bold)
+                Text("Save & Apply", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
