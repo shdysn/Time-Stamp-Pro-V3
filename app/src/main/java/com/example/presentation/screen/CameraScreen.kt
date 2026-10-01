@@ -6,8 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,14 +20,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,14 +44,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import com.example.data.model.StampOrientation
 import com.example.presentation.components.GalleryShortcutButton
 import com.example.presentation.components.ShutterButton
 import com.example.presentation.components.TimestampOverlayView
@@ -144,12 +156,13 @@ fun CameraScreen(
                 }
         )
 
-        // 2. Real-time Timestamp & Geotag Overlay HUD
+        // 2. Real-time Timestamp & Geotag Overlay HUD (rotates with device and settings)
         TimestampOverlayView(
             settings = uiState.settings,
             location = uiState.location,
             heading = uiState.compassHeading,
             currentTimeMillis = uiState.currentTimeMillis,
+            orientationDegrees = uiState.effectiveOrientationDegrees,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -163,17 +176,62 @@ fun CameraScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color.White))
         }
 
-        // 4. Top Action Bar: Clean & Minimal - Only the Settings Icon as requested
-        Box(
+        // 4. Top Action Bar: Quick Orientation Control + Settings
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 32.dp)
-                .align(Alignment.TopEnd)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Quick Orientation indicator / selector chip
+            Surface(
+                onClick = { viewModel.cycleStampOrientation() },
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Black.copy(alpha = 0.55f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val orientAngle = uiState.effectiveOrientationDegrees
+                    val animatedIconRotation by animateFloatAsState(
+                        targetValue = orientAngle.toFloat(),
+                        animationSpec = tween(durationMillis = 280),
+                        label = "orient_icon_rot"
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ScreenRotation,
+                        contentDescription = "Cycle Orientation",
+                        tint = if (uiState.settings.stampOrientation == StampOrientation.AUTO) AppColors.AccentGold else AppColors.AccentCyan,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .rotate(animatedIconRotation)
+                    )
+                    val orientationLabel = when (uiState.settings.stampOrientation) {
+                        StampOrientation.AUTO -> "Auto (${orientAngle}°)"
+                        StampOrientation.PORTRAIT_0 -> "0° Portrait"
+                        StampOrientation.LANDSCAPE_90 -> "90° Land"
+                        StampOrientation.PORTRAIT_180 -> "180° Invert"
+                        StampOrientation.LANDSCAPE_270 -> "270° Land"
+                    }
+                    Text(
+                        text = orientationLabel,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Settings button
             IconButton(
                 onClick = onNavigateToSettings,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
                     .size(48.dp)
                     .background(Color.Black.copy(alpha = 0.5f), CircleShape)
             ) {

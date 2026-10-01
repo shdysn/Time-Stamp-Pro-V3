@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.camera.CameraManager
 import com.example.camera.FlashMode
 import com.example.data.model.LocationData
+import com.example.data.model.StampOrientation
 import com.example.data.model.StampTemplateType
 import com.example.data.model.TemplateData
 import com.example.data.model.UserSettings
@@ -18,6 +19,7 @@ import com.example.database.AppDatabase
 import com.example.database.MediaEntity
 import com.example.location.CompassManager
 import com.example.location.GPSManager
+import com.example.sensor.OrientationManager
 import com.example.storage.FileManager
 import com.example.watermark.StampRenderRequest
 import com.example.watermark.WatermarkEngine
@@ -41,6 +43,7 @@ data class CameraUiState(
     val maxZoom: Float = 5f,
     val location: LocationData = LocationData(),
     val compassHeading: Float = 0f,
+    val sensorOrientationDegrees: Int = 0,
     val currentTimeMillis: Long = System.currentTimeMillis(),
     val settings: UserSettings = UserSettings(),
     val lastCapturedMedia: MediaEntity? = null,
@@ -48,7 +51,10 @@ data class CameraUiState(
     val showQuickNoteDialog: Boolean = false,
     val showCustomTextDialog: Boolean = false,
     val statusMessage: String? = null
-)
+) {
+    val effectiveOrientationDegrees: Int
+        get() = settings.stampOrientation.resolveDegrees(sensorOrientationDegrees)
+}
 
 sealed interface CameraUiEffect {
     data class PhotoSaved(val media: MediaEntity, val uri: Uri?) : CameraUiEffect
@@ -60,6 +66,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     val cameraManager = CameraManager(application)
     val gpsManager = GPSManager(application)
     val compassManager = CompassManager(application)
+    val orientationManager = OrientationManager(application)
     val fileManager = FileManager(application)
     private val settingsRepository = SettingsRepository(application)
 
@@ -114,6 +121,15 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
+        // Collect device physical orientation sensor
+        viewModelScope.launch {
+            orientationManager.orientationDegrees.collect { degrees ->
+                _uiState.update { it.copy(sensorOrientationDegrees = degrees) }
+                val targetRot = _uiState.value.effectiveOrientationDegrees
+                cameraManager.setTargetRotation(targetRot)
+            }
+        }
+
         // Live clock tick (1 second intervals for timestamp)
         viewModelScope.launch {
             while (isActive) {
@@ -135,11 +151,13 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     fun startSensors() {
         gpsManager.startLocationUpdates()
         compassManager.startListening()
+        orientationManager.startListening()
     }
 
     fun stopSensors() {
         gpsManager.stopLocationUpdates()
         compassManager.stopListening()
+        orientationManager.stopListening()
     }
 
     fun bindCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
@@ -237,6 +255,21 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setStampOrientation(orientation: StampOrientation) {
+        viewModelScope.launch {
+            settingsRepository.setStampOrientation(orientation)
+            val effective = orientation.resolveDegrees(_uiState.value.sensorOrientationDegrees)
+            cameraManager.setTargetRotation(effective)
+        }
+    }
+
+    fun cycleStampOrientation() {
+        val all = StampOrientation.entries
+        val currentIndex = all.indexOf(_uiState.value.settings.stampOrientation)
+        val next = all[(currentIndex + 1) % all.size]
+        setStampOrientation(next)
+    }
+
     fun openDeviceGallery() {
         fileManager.openPhoneGallery(_uiState.value.lastCapturedUri)
     }
@@ -251,13 +284,25 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             try {
-                // 1. Capture raw bitmap from camera or fallback simulator
-                val rawBitmap = cameraManager.capturePhoto()
+                val effectiveOrientation = _uiState.value.effectiveOrientationDegrees
 
-                // 2. Prepare mutable copy and apply watermark engine with explicit template
+                // 1. Capture raw bitmap from camera or fallback simulator with target orientation
+                val rawBitmap = cameraManager.capturePhoto(effectiveOrientation)
+
+                // 2. Prepare mutable copy and apply watermark engine with explicit template and orientation
                 val timestamp = System.currentTimeMillis()
                 val activeSettings = _uiState.value.settings
-                Log.i("CameraViewModel", "Capturing and stamping photo with template: ${activeSettings.templateType}")
+                Log.i("CameraViewModel", "Capturing and stamping photo with template: ${activeSettings.templateType}, orientation: $effectiveOrientation°")
+
+                // If bitmap is already oriented to match target aspect ratio (width > height for landscape):
+                val isBitmapLandscape = rawBitmap.width > rawBitmap.height
+                val isTargetLandscape = effectiveOrientation == 90 || effectiveOrientation == 270
+
+                val stampRenderOrientation = if (isBitmapLandscape == isTargetLandscape) {
+                    if (effectiveOrientation == 180) 180 else 0
+                } else {
+                    effectiveOrientation
+                }
 
                 val renderRequest = StampRenderRequest(
                     sourceBitmap = rawBitmap,
@@ -265,7 +310,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     settings = activeSettings,
                     location = _uiState.value.location,
                     heading = _uiState.value.compassHeading,
-                    timestampMillis = timestamp
+                    timestampMillis = timestamp,
+                    orientationDegrees = stampRenderOrientation
                 )
                 val stampedBitmap = WatermarkEngine.renderStamp(renderRequest)
 

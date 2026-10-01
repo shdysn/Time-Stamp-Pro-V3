@@ -14,16 +14,18 @@ object WatermarkEngine {
         settings: UserSettings,
         location: LocationData,
         heading: Float,
-        timestampMillis: Long = System.currentTimeMillis()
+        timestampMillis: Long = System.currentTimeMillis(),
+        orientationDegrees: Int = 0
     ): Bitmap {
-        Log.i(TAG, "applyWatermark called with template: ${settings.templateType}")
+        Log.i(TAG, "applyWatermark called with template: ${settings.templateType}, orientation: $orientationDegrees")
         val request = StampRenderRequest(
             sourceBitmap = sourceBitmap,
             templateType = settings.templateType,
             settings = settings,
             location = location,
             heading = heading,
-            timestampMillis = timestampMillis
+            timestampMillis = timestampMillis,
+            orientationDegrees = orientationDegrees
         )
         return renderStamp(request)
     }

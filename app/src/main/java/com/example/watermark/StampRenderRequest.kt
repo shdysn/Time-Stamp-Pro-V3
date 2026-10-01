@@ -11,5 +11,6 @@ data class StampRenderRequest(
     val settings: UserSettings,
     val location: LocationData,
     val heading: Float,
-    val timestampMillis: Long = System.currentTimeMillis()
+    val timestampMillis: Long = System.currentTimeMillis(),
+    val orientationDegrees: Int = 0
 )

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.model.AltitudeUnit
 import com.example.data.model.CoordinateFormat
 import com.example.data.model.StampFontSize
+import com.example.data.model.StampOrientation
 import com.example.data.model.StampPosition
 import com.example.data.model.StampTemplateType
 import com.example.data.model.UserSettings
@@ -85,6 +86,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateStampPosition(pos: StampPosition) {
         viewModelScope.launch {
             repository.setStampPosition(pos)
+        }
+    }
+
+    fun updateStampOrientation(orientation: StampOrientation) {
+        viewModelScope.launch {
+            repository.setStampOrientation(orientation)
         }
     }
 

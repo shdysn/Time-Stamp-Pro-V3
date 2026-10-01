@@ -44,6 +44,18 @@ enum class StampColor(val displayName: String, val colorHex: Long) {
     ELECTRIC_CYAN("Data Cyan", 0xFF00E5FF)
 }
 
+enum class StampOrientation(val displayName: String, val degrees: Int?) {
+    AUTO("Auto (Sensor)", null),
+    PORTRAIT_0("0° (Portrait)", 0),
+    LANDSCAPE_90("90° (Landscape)", 90),
+    PORTRAIT_180("180° (Reverse)", 180),
+    LANDSCAPE_270("270° (Landscape)", 270);
+
+    fun resolveDegrees(sensorDegrees: Int): Int {
+        return degrees ?: sensorDegrees
+    }
+}
+
 data class UserSettings(
     val dateFormat: String = "yyyy-MM-dd HH:mm:ss",
     val coordinateFormat: CoordinateFormat = CoordinateFormat.DECIMAL,
@@ -51,6 +63,7 @@ data class UserSettings(
     val stampPosition: StampPosition = StampPosition.BOTTOM_LEFT,
     val templateType: StampTemplateType = StampTemplateType.CLASSIC_CARD,
     val stampDesignStyle: StampDesignStyle = StampDesignStyle.CLASSIC_CARD,
+    val stampOrientation: StampOrientation = StampOrientation.AUTO,
     val textColorHex: Long = 0xFFFFC107, // Safety Gold default
     val backgroundOpacity: Float = 0.65f,
     val fontSize: StampFontSize = StampFontSize.MEDIUM,

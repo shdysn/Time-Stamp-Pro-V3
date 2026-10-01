@@ -143,6 +143,12 @@ fun CustomTextDialog(
                     )
                 }
 
+                Text(
+                    text = "Text automatically rotates to match phone & timestamp orientation (0°, 90°, 180°, 270°).",
+                    color = AppColors.TextSecondary,
+                    fontSize = 11.sp
+                )
+
                 // Text Input Field
                 OutlinedTextField(
                     value = text,

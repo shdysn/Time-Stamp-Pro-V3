@@ -244,4 +244,54 @@ class TemplatePipelineTest {
         assertFalse(LocationData.isCodeOrPlusCode("San Francisco"))
         assertFalse(LocationData.isCodeOrPlusCode("Main Market"))
     }
+
+    @Test
+    fun testStampOrientationResolution() {
+        val auto = com.example.data.model.StampOrientation.AUTO
+        assertEquals(0, auto.resolveDegrees(0))
+        assertEquals(90, auto.resolveDegrees(90))
+        assertEquals(180, auto.resolveDegrees(180))
+        assertEquals(270, auto.resolveDegrees(270))
+
+        val port = com.example.data.model.StampOrientation.PORTRAIT_0
+        assertEquals(0, port.resolveDegrees(90))
+
+        val land90 = com.example.data.model.StampOrientation.LANDSCAPE_90
+        assertEquals(90, land90.resolveDegrees(0))
+
+        val invert = com.example.data.model.StampOrientation.PORTRAIT_180
+        assertEquals(180, invert.resolveDegrees(270))
+
+        val land270 = com.example.data.model.StampOrientation.LANDSCAPE_270
+        assertEquals(270, land270.resolveDegrees(90))
+    }
+
+    @Test
+    fun testRenderAllOrientationsWithoutError() {
+        val bitmap = Bitmap.createBitmap(1080, 1920, Bitmap.Config.ARGB_8888)
+        val location = LocationData(latitude = 37.7749, longitude = -122.4194, address = "Test Site")
+        val angles = listOf(0, 90, 180, 270)
+
+        for (angle in angles) {
+            for (template in StampTemplateType.entries) {
+                val request = StampRenderRequest(
+                    sourceBitmap = bitmap,
+                    templateType = template,
+                    settings = UserSettings(
+                        templateType = template,
+                        isCustomTextEnabled = true,
+                        customText = "ORIENTATION $angle° TEST"
+                    ),
+                    location = location,
+                    heading = 45f,
+                    orientationDegrees = angle
+                )
+
+                val result = WatermarkEngine.renderStamp(request)
+                assertNotNull("Result bitmap at angle $angle must not be null", result)
+                assertEquals(1080, result.width)
+                assertEquals(1920, result.height)
+            }
+        }
+    }
 }

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +72,7 @@ import com.example.data.model.CoordinateFormat
 import com.example.data.model.LocationData
 import com.example.data.model.StampColor
 import com.example.data.model.StampFontSize
+import com.example.data.model.StampOrientation
 import com.example.data.model.StampPosition
 import com.example.data.model.StampTemplateType
 import com.example.presentation.components.CustomTextDialog
@@ -420,6 +422,52 @@ fun SettingsScreen(
                                                 fontSize = 14.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                             )
+                                            if (isSelected) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = AppColors.AccentGold, modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 4. Stamp & Text Orientation
+                            SectionCard(title = "STAMP & TEXT ORIENTATION") {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "Orientation controls how the timestamp watermark and custom text align on live preview and saved photos.",
+                                        color = AppColors.TextSecondary,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                    StampOrientation.entries.forEach { orient ->
+                                        val isSelected = settings.stampOrientation == orient
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isSelected) AppColors.DarkSurfaceVariant else Color.Transparent)
+                                                .clickable { viewModel.updateStampOrientation(orient) }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ScreenRotation,
+                                                    contentDescription = null,
+                                                    tint = if (isSelected) AppColors.AccentGold else AppColors.TextSecondary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Text(
+                                                    text = orient.displayName,
+                                                    color = if (isSelected) AppColors.AccentGold else Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            }
                                             if (isSelected) {
                                                 Icon(Icons.Default.Check, contentDescription = null, tint = AppColors.AccentGold, modifier = Modifier.size(18.dp))
                                             }

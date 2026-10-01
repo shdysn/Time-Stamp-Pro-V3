@@ -21,7 +21,7 @@ object StampRenderer {
     private const val TAG = "StampRenderer"
 
     fun render(request: StampRenderRequest): Bitmap {
-        Log.i(TAG, "render called with template: ${request.templateType}")
+        Log.i(TAG, "render called with template: ${request.templateType}, orientation: ${request.orientationDegrees}°")
 
         val source = request.sourceBitmap
         val outputBitmap = if (source.isMutable) {
@@ -34,9 +34,33 @@ object StampRenderer {
         val imageWidth = outputBitmap.width.toFloat()
         val imageHeight = outputBitmap.height.toFloat()
 
+        val orientation = ((request.orientationDegrees % 360) + 360) % 360
+        val isTransformed = orientation != 0
+
+        if (isTransformed) {
+            canvas.save()
+            when (orientation) {
+                90 -> {
+                    canvas.translate(imageWidth, 0f)
+                    canvas.rotate(90f)
+                }
+                180 -> {
+                    canvas.translate(imageWidth, imageHeight)
+                    canvas.rotate(180f)
+                }
+                270 -> {
+                    canvas.translate(0f, imageHeight)
+                    canvas.rotate(270f)
+                }
+            }
+        }
+
+        val renderWidth = if (orientation == 90 || orientation == 270) imageHeight else imageWidth
+        val renderHeight = if (orientation == 90 || orientation == 270) imageWidth else imageHeight
+
         // Resolution-proportional scaling:
         // Baseline 1400px reference dimension, scales smoothly for 1080p (1080x1920), 1440p, and 4K (2160x3840)
-        val refDimension = max(imageWidth, imageHeight)
+        val refDimension = max(renderWidth, renderHeight)
         val resScale = (refDimension / 1400f).coerceAtLeast(0.6f) * request.settings.fontSize.scale
 
         val spec = StampLayoutSpec.create(
@@ -47,19 +71,23 @@ object StampRenderer {
 
         // 1. Optional Custom User Text Banner
         if (request.settings.isCustomTextEnabled && request.settings.customText.isNotBlank()) {
-            drawCustomTextOverlay(canvas, request.settings, imageWidth, resScale)
+            drawCustomTextOverlay(canvas, request.settings, renderWidth, resScale)
         }
 
         // 2. Render Selected Template with explicit routing
         if (request.settings.isStampVisible) {
             when (request.templateType) {
-                StampTemplateType.CLASSIC_CARD -> renderClassicCard(canvas, request, spec, imageWidth, imageHeight, resScale)
-                StampTemplateType.MODERN_MINIMAL -> renderModernMinimal(canvas, request, spec, imageWidth, imageHeight, resScale)
-                StampTemplateType.CYBER_TECH_HUD -> renderCyberTechHud(canvas, request, spec, imageWidth, imageHeight, resScale)
-                StampTemplateType.FRAMED_OUTLINE -> renderFramedOutline(canvas, request, spec, imageWidth, imageHeight, resScale)
-                StampTemplateType.COMPACT_PILL -> renderCompactPill(canvas, request, spec, imageWidth, imageHeight, resScale)
-                StampTemplateType.FULL_BANNER -> renderFullBanner(canvas, request, spec, imageWidth, imageHeight, resScale)
+                StampTemplateType.CLASSIC_CARD -> renderClassicCard(canvas, request, spec, renderWidth, renderHeight, resScale)
+                StampTemplateType.MODERN_MINIMAL -> renderModernMinimal(canvas, request, spec, renderWidth, renderHeight, resScale)
+                StampTemplateType.CYBER_TECH_HUD -> renderCyberTechHud(canvas, request, spec, renderWidth, renderHeight, resScale)
+                StampTemplateType.FRAMED_OUTLINE -> renderFramedOutline(canvas, request, spec, renderWidth, renderHeight, resScale)
+                StampTemplateType.COMPACT_PILL -> renderCompactPill(canvas, request, spec, renderWidth, renderHeight, resScale)
+                StampTemplateType.FULL_BANNER -> renderFullBanner(canvas, request, spec, renderWidth, renderHeight, resScale)
             }
+        }
+
+        if (isTransformed) {
+            canvas.restore()
         }
 
         return outputBitmap

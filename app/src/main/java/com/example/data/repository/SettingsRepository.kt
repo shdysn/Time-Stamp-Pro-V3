@@ -15,6 +15,7 @@ import com.example.data.model.AltitudeUnit
 import com.example.data.model.CoordinateFormat
 import com.example.data.model.StampDesignStyle
 import com.example.data.model.StampFontSize
+import com.example.data.model.StampOrientation
 import com.example.data.model.StampPosition
 import com.example.data.model.StampTemplateType
 import com.example.data.model.UserSettings
@@ -33,6 +34,7 @@ class SettingsRepository(private val context: Context) {
         private const val TAG = "SettingsRepository"
         val KEY_TEMPLATE_TYPE = stringPreferencesKey("template_type")
         val KEY_STAMP_POSITION = stringPreferencesKey("stamp_position")
+        val KEY_STAMP_ORIENTATION = stringPreferencesKey("stamp_orientation")
         val KEY_TEXT_COLOR_HEX = longPreferencesKey("text_color_hex")
         val KEY_BACKGROUND_OPACITY = floatPreferencesKey("background_opacity")
         val KEY_FONT_SIZE = stringPreferencesKey("font_size")
@@ -73,6 +75,9 @@ class SettingsRepository(private val context: Context) {
             val posString = preferences[KEY_STAMP_POSITION]
             val position = StampPosition.entries.firstOrNull { it.name == posString } ?: StampPosition.BOTTOM_LEFT
 
+            val orientString = preferences[KEY_STAMP_ORIENTATION]
+            val orientation = StampOrientation.entries.firstOrNull { it.name == orientString } ?: StampOrientation.AUTO
+
             val fontSizeString = preferences[KEY_FONT_SIZE]
             val fontSize = StampFontSize.entries.firstOrNull { it.name == fontSizeString } ?: StampFontSize.MEDIUM
 
@@ -95,6 +100,7 @@ class SettingsRepository(private val context: Context) {
                 templateType = templateType,
                 stampPosition = position,
                 stampDesignStyle = style,
+                stampOrientation = orientation,
                 textColorHex = preferences[KEY_TEXT_COLOR_HEX] ?: 0xFFFFC107,
                 backgroundOpacity = preferences[KEY_BACKGROUND_OPACITY] ?: 0.65f,
                 fontSize = fontSize,
@@ -129,6 +135,13 @@ class SettingsRepository(private val context: Context) {
     suspend fun setStampPosition(position: StampPosition) {
         dataStore.edit { preferences ->
             preferences[KEY_STAMP_POSITION] = position.name
+        }
+    }
+
+    suspend fun setStampOrientation(orientation: StampOrientation) {
+        Log.i(TAG, "Persisting stamp orientation: $orientation")
+        dataStore.edit { preferences ->
+            preferences[KEY_STAMP_ORIENTATION] = orientation.name
         }
     }
 
