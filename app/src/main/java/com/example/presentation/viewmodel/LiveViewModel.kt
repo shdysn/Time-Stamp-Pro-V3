@@ -23,8 +23,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class FacebookLiveFormState(
-    val selectedAccount: String = "Alex Rivera (@alexlive_official)",
-    val selectedDestination: String = "Creator Page: Alex Live Tech",
+    val selectedAccount: String = "My Facebook Account",
+    val selectedDestination: String = "My Creator Page",
     val title: String = "Live Community Showcase & Chat",
     val description: String = "Join us live! Feel free to ask any questions in the chat.",
     val privacy: StreamPrivacy = StreamPrivacy.PUBLIC,
@@ -33,7 +33,7 @@ data class FacebookLiveFormState(
 )
 
 data class YouTubeLiveFormState(
-    val selectedChannel: String = "Alex Tech Studio (48.2K Subscribers)",
+    val selectedChannel: String = "Main Live Stream Channel",
     val title: String = "Live Mobile App Development & Tech Talk",
     val description: String = "Streaming live with full HD camera and screen casting.",
     val privacy: StreamPrivacy = StreamPrivacy.PUBLIC,
@@ -48,7 +48,7 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
     private val db = (application as LiveStreamApplication).database
     private val historyDao = db.streamHistoryDao()
 
-    val accountManager = LiveAccountManager()
+    val accountManager = LiveAccountManager(application.applicationContext)
     val streamEngine = LiveStreamEngine(viewModelScope)
 
     // User settings
@@ -60,11 +60,20 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Facebook live draft setup form
-    private val _facebookForm = MutableStateFlow(FacebookLiveFormState())
+    private val _facebookForm = MutableStateFlow(
+        FacebookLiveFormState(
+            selectedAccount = accountManager.facebookAccount.value.accountName,
+            selectedDestination = accountManager.facebookAccount.value.selectedDestination
+        )
+    )
     val facebookForm: StateFlow<FacebookLiveFormState> = _facebookForm.asStateFlow()
 
     // YouTube live draft setup form
-    private val _youtubeForm = MutableStateFlow(YouTubeLiveFormState())
+    private val _youtubeForm = MutableStateFlow(
+        YouTubeLiveFormState(
+            selectedChannel = accountManager.youtubeAccount.value.selectedDestination
+        )
+    )
     val youtubeForm: StateFlow<YouTubeLiveFormState> = _youtubeForm.asStateFlow()
 
     // Screen sharing permission draft state (needed when user selects Screen Live)
@@ -78,6 +87,15 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
     // Active Tab in History (All, Facebook, YouTube)
     private val _historyFilter = MutableStateFlow<String>("ALL")
     val historyFilter: StateFlow<String> = _historyFilter.asStateFlow()
+
+    fun updateStreamerProfile(name: String, tagline: String) {
+        _userSettings.update {
+            it.copy(
+                streamerDisplayName = name.ifBlank { "My Stream Studio" },
+                streamerTagline = tagline.ifBlank { "Primary Live Broadcaster" }
+            )
+        }
+    }
 
     fun updateFacebookForm(transform: (FacebookLiveFormState) -> FacebookLiveFormState) {
         _facebookForm.update(transform)

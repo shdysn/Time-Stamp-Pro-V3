@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Notifications
@@ -65,7 +66,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AudioQuality
 import com.example.data.model.StreamOrientation
+import com.example.data.model.StreamPlatform
 import com.example.data.model.VideoQuality
+import com.example.presentation.components.CustomAccountDialog
 import com.example.presentation.viewmodel.LiveViewModel
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkSurface
@@ -91,6 +94,7 @@ fun SettingsScreen(
 
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var editingPlatform by remember { mutableStateOf<StreamPlatform?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -403,13 +407,18 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        TextButton(onClick = { viewModel.accountManager.toggleFacebookConnection() }) {
-                            Text(
-                                text = if (fbAccount.isConnected) "Disconnect" else "Connect",
-                                color = if (fbAccount.isConnected) Color(0xFFEF4444) else FacebookBlue,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { editingPlatform = StreamPlatform.FACEBOOK }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit Facebook", tint = LiveCyan)
+                            }
+                            TextButton(onClick = { viewModel.accountManager.toggleFacebookConnection() }) {
+                                Text(
+                                    text = if (fbAccount.isConnected) "Disconnect" else "Connect",
+                                    color = if (fbAccount.isConnected) Color(0xFFEF4444) else FacebookBlue,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
 
@@ -441,13 +450,18 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        TextButton(onClick = { viewModel.accountManager.toggleYouTubeConnection() }) {
-                            Text(
-                                text = if (ytAccount.isConnected) "Disconnect" else "Connect",
-                                color = if (ytAccount.isConnected) Color(0xFFEF4444) else YouTubeRed,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { editingPlatform = StreamPlatform.YOUTUBE }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit YouTube", tint = LiveCyan)
+                            }
+                            TextButton(onClick = { viewModel.accountManager.toggleYouTubeConnection() }) {
+                                Text(
+                                    text = if (ytAccount.isConnected) "Disconnect" else "Connect",
+                                    color = if (ytAccount.isConnected) Color(0xFFEF4444) else YouTubeRed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -590,6 +604,30 @@ fun SettingsScreen(
                 TextButton(onClick = { showDeleteAccountDialog = false }) {
                     Text("Cancel", color = LiveCyan)
                 }
+            }
+        )
+    }
+
+    // Custom Account Editor Modal Dialog
+    editingPlatform?.let { platform ->
+        val acc = if (platform == StreamPlatform.FACEBOOK) fbAccount else ytAccount
+        CustomAccountDialog(
+            platform = platform,
+            initialName = acc.accountName,
+            initialHandle = acc.accountHandle,
+            initialDestination = acc.selectedDestination,
+            initialStreamKey = acc.streamKey,
+            initialRtmpUrl = acc.rtmpServerUrl,
+            onDismiss = { editingPlatform = null },
+            onSave = { name, handle, dest, key, rtmp ->
+                if (platform == StreamPlatform.FACEBOOK) {
+                    viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
+                } else {
+                    viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
+                }
+                editingPlatform = null
             }
         )
     }

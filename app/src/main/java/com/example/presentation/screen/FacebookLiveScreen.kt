@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.StreamMode
 import com.example.data.model.StreamPlatform
 import com.example.data.model.StreamPrivacy
+import com.example.presentation.components.CustomAccountDialog
 import com.example.presentation.viewmodel.LiveViewModel
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkSurface
@@ -83,6 +85,7 @@ fun FacebookLiveScreen(
     val fbAccount by viewModel.accountManager.facebookAccount.collectAsState()
 
     var showDestinationMenu by remember { mutableStateOf(false) }
+    var showEditAccountDialog by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -192,12 +195,12 @@ fun FacebookLiveScreen(
                             color = Color(0xFF94A3B8)
                         )
                     }
-                    Text(
-                        text = "Active",
-                        fontSize = 11.sp,
-                        color = LiveCyan,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    IconButton(
+                        onClick = { showEditAccountDialog = true },
+                        modifier = Modifier.testTag("edit_fb_account_on_live_screen")
+                    ) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Account", tint = LiveCyan)
+                    }
                 }
             }
 
@@ -539,5 +542,22 @@ fun FacebookLiveScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showEditAccountDialog) {
+        CustomAccountDialog(
+            platform = StreamPlatform.FACEBOOK,
+            initialName = fbAccount.accountName,
+            initialHandle = fbAccount.accountHandle,
+            initialDestination = fbAccount.selectedDestination,
+            initialStreamKey = fbAccount.streamKey,
+            initialRtmpUrl = fbAccount.rtmpServerUrl,
+            onDismiss = { showEditAccountDialog = false },
+            onSave = { name, handle, dest, key, rtmp ->
+                viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+                viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
+                showEditAccountDialog = false
+            }
+        )
     }
 }

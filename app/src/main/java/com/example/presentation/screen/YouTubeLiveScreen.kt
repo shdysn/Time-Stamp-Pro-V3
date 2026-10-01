@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
@@ -60,6 +61,7 @@ import com.example.data.model.StreamLatency
 import com.example.data.model.StreamMode
 import com.example.data.model.StreamPlatform
 import com.example.data.model.StreamPrivacy
+import com.example.presentation.components.CustomAccountDialog
 import com.example.presentation.viewmodel.LiveViewModel
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkSurface
@@ -82,6 +84,7 @@ fun YouTubeLiveScreen(
     val ytAccount by viewModel.accountManager.youtubeAccount.collectAsState()
 
     var showChannelMenu by remember { mutableStateOf(false) }
+    var showEditAccountDialog by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -200,11 +203,19 @@ fun YouTubeLiveScreen(
                                 )
                             }
                         }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select",
-                            tint = Color.White
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { showEditAccountDialog = true },
+                                modifier = Modifier.testTag("edit_yt_account_on_live_screen")
+                            ) {
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Channel", tint = LiveCyan)
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
 
@@ -554,5 +565,22 @@ fun YouTubeLiveScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showEditAccountDialog) {
+        CustomAccountDialog(
+            platform = StreamPlatform.YOUTUBE,
+            initialName = ytAccount.accountName,
+            initialHandle = ytAccount.accountHandle,
+            initialDestination = ytAccount.selectedDestination,
+            initialStreamKey = ytAccount.streamKey,
+            initialRtmpUrl = ytAccount.rtmpServerUrl,
+            onDismiss = { showEditAccountDialog = false },
+            onSave = { name, handle, dest, key, rtmp ->
+                viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+                viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
+                showEditAccountDialog = false
+            }
+        )
     }
 }

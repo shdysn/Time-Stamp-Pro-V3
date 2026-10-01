@@ -70,6 +70,8 @@ data class StreamStats(
 )
 
 data class UserSettings(
+    val streamerDisplayName: String = "My Stream Studio",
+    val streamerTagline: String = "Primary Live Broadcaster",
     val videoQuality: VideoQuality = VideoQuality.FHD_1080P,
     val frameRate: Int = 60,
     val audioQuality: AudioQuality = AudioQuality.HIGH_192,
@@ -87,7 +89,9 @@ data class ConnectedAccount(
     val accountName: String,
     val accountHandle: String,
     val isConnected: Boolean,
-    val tokenExpiry: String = "Valid for 60 days",
+    val streamKey: String = "",
+    val rtmpServerUrl: String = "",
+    val tokenExpiry: String = "Active",
     val availableDestinations: List<String> = emptyList(),
     val selectedDestination: String = ""
 )

@@ -24,24 +24,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.model.StreamPlatform
+import com.example.presentation.components.CustomAccountDialog
+import com.example.presentation.components.EditProfileDialog
 import com.example.presentation.viewmodel.LiveViewModel
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkSurface
@@ -76,6 +79,10 @@ fun HomeScreen(
     val fbAccount by viewModel.accountManager.facebookAccount.collectAsState()
     val ytAccount by viewModel.accountManager.youtubeAccount.collectAsState()
     val historyList by viewModel.streamHistory.collectAsState()
+    val userSettings by viewModel.userSettings.collectAsState()
+
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    var editingPlatform by remember { mutableStateOf<StreamPlatform?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -188,8 +195,11 @@ fun HomeScreen(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
+                            val initials = remember(userSettings.streamerDisplayName) {
+                                userSettings.streamerDisplayName.take(2).uppercase()
+                            }
                             Text(
-                                text = "AR",
+                                text = initials.ifBlank { "LS" },
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -200,15 +210,26 @@ fun HomeScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Alex Rivera (Studio Pro)",
+                                text = userSettings.streamerDisplayName,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "Primary Broadcast Anchor",
+                                text = userSettings.streamerTagline,
                                 fontSize = 12.sp,
                                 color = Color(0xFF94A3B8)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showEditProfileDialog = true },
+                            modifier = Modifier.testTag("edit_profile_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile",
+                                tint = LiveCyan
                             )
                         }
                     }
@@ -223,7 +244,9 @@ fun HomeScreen(
                         Surface(
                             color = if (fbAccount.isConnected) Color(0xFF1E3A8A) else Color(0xFF334155),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { editingPlatform = StreamPlatform.FACEBOOK }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -240,7 +263,7 @@ fun HomeScreen(
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (fbAccount.isConnected) "FB Linked" else "FB Unlinked",
+                                    text = fbAccount.accountName.take(12),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color.White
@@ -251,7 +274,9 @@ fun HomeScreen(
                         Surface(
                             color = if (ytAccount.isConnected) Color(0xFF7F1D1D) else Color(0xFF334155),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { editingPlatform = StreamPlatform.YOUTUBE }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -268,7 +293,7 @@ fun HomeScreen(
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (ytAccount.isConnected) "YouTube Linked" else "YT Unlinked",
+                                    text = ytAccount.accountName.take(12),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color.White
@@ -330,24 +355,22 @@ fun HomeScreen(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = fbAccount.selectedDestination,
+                                    text = "${fbAccount.accountName} • ${fbAccount.selectedDestination}",
                                     fontSize = 12.sp,
                                     color = Color(0xFF94A3B8)
                                 )
                             }
                         }
 
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Go",
-                            tint = LiveCyan
-                        )
+                        IconButton(onClick = { editingPlatform = StreamPlatform.FACEBOOK }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Account", tint = LiveCyan)
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Broadcast to your timeline, creator pages, or community groups with camera or screen capture.",
+                        text = "Broadcast to your profile, creator pages, or groups with camera or screen capture.",
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1),
                         lineHeight = 16.sp
@@ -413,24 +436,22 @@ fun HomeScreen(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = ytAccount.selectedDestination,
+                                    text = "${ytAccount.accountName} • ${ytAccount.selectedDestination}",
                                     fontSize = 12.sp,
                                     color = Color(0xFF94A3B8)
                                 )
                             }
                         }
 
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Go",
-                            tint = LiveCyan
-                        )
+                        IconButton(onClick = { editingPlatform = StreamPlatform.YOUTUBE }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Account", tint = LiveCyan)
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Stream to your YouTube subscribers with low-latency chat, high-bitrate encoding, and custom privacy.",
+                        text = "Stream to your YouTube channel with low-latency chat, high-bitrate encoding, and custom stream key.",
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1),
                         lineHeight = 16.sp
@@ -534,5 +555,42 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    // Edit Streamer Profile Dialog
+    if (showEditProfileDialog) {
+        EditProfileDialog(
+            currentName = userSettings.streamerDisplayName,
+            currentTagline = userSettings.streamerTagline,
+            onDismiss = { showEditProfileDialog = false },
+            onSave = { name, tagline ->
+                viewModel.updateStreamerProfile(name, tagline)
+                showEditProfileDialog = false
+            }
+        )
+    }
+
+    // Edit Custom Facebook / YouTube Account Dialog
+    editingPlatform?.let { platform ->
+        val acc = if (platform == StreamPlatform.FACEBOOK) fbAccount else ytAccount
+        CustomAccountDialog(
+            platform = platform,
+            initialName = acc.accountName,
+            initialHandle = acc.accountHandle,
+            initialDestination = acc.selectedDestination,
+            initialStreamKey = acc.streamKey,
+            initialRtmpUrl = acc.rtmpServerUrl,
+            onDismiss = { editingPlatform = null },
+            onSave = { name, handle, dest, key, rtmp ->
+                if (platform == StreamPlatform.FACEBOOK) {
+                    viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
+                } else {
+                    viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
+                }
+                editingPlatform = null
+            }
+        )
     }
 }

@@ -23,15 +23,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,24 +45,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.model.StreamPlatform
+import com.example.presentation.components.CustomAccountDialog
 import com.example.presentation.viewmodel.LiveViewModel
 import com.example.ui.theme.DarkBg
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceBorder
-import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.FacebookBlue
 import com.example.ui.theme.LiveCyan
-import com.example.ui.theme.LiveRed
-import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.YouTubeRed
 
 @Composable
@@ -71,6 +67,7 @@ fun LoginScreen(
 ) {
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showTermsDialog by remember { mutableStateOf(false) }
+    var editingPlatform by remember { mutableStateOf<StreamPlatform?>(null) }
 
     val fbAccount by viewModel.accountManager.facebookAccount.collectAsState()
     val ytAccount by viewModel.accountManager.youtubeAccount.collectAsState()
@@ -91,13 +88,13 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // App Icon & Title
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(88.dp)
+                    .size(80.dp)
                     .clip(CircleShape)
                     .border(2.dp, LiveCyan, CircleShape)
             ) {
@@ -108,7 +105,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "LiveCast Studio",
@@ -118,18 +115,16 @@ fun LoginScreen(
             )
 
             Text(
-                text = "Connect Accounts to Broadcast",
-                fontSize = 14.sp,
+                text = "Connect or Enter Your Personal Logins",
+                fontSize = 13.sp,
                 color = Color(0xFF94A3B8)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Policy Disclaimer Card (from user requirements)
+            // Policy Disclaimer Card
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E293B)
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -146,14 +141,14 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Platform Login Notice",
+                            text = "Add Your Own Accounts & Stream Keys",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = LiveCyan
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Facebook & Google logins connect separate platforms. Google connects YouTube Live; Facebook connects Pages & Profile. Comply with community guidelines to prevent account restrictions.",
+                            text = "You can enter your own real Facebook Page/Profile and YouTube Channel stream keys below, or use auto-login. Both platforms operate independently.",
                             fontSize = 12.sp,
                             color = Color(0xFFCBD5E1),
                             lineHeight = 17.sp
@@ -162,135 +157,170 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Facebook Login Button
-            Button(
-                onClick = {
-                    viewModel.loginWithFacebook()
-                    onLoginSuccess()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .testTag("facebook_login_button"),
+            // 1. Facebook Account Card with Quick Login & Edit
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF131D31)),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FacebookBlue,
-                    contentColor = Color.White
-                )
+                border = androidx.compose.foundation.BorderStroke(1.dp, FacebookBlue.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "f",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 18.sp,
-                            color = FacebookBlue
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(FacebookBlue),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("f", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = fbAccount.accountName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = fbAccount.accountHandle,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { editingPlatform = StreamPlatform.FACEBOOK },
+                            modifier = Modifier.testTag("edit_fb_account_btn")
+                        ) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Account", tint = LiveCyan)
+                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = if (fbAccount.isConnected) "Connected as ${fbAccount.accountName}" else "Login with Facebook",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (fbAccount.isConnected) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Connected",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.loginWithFacebook()
+                            onLoginSuccess()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .testTag("facebook_login_button"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = FacebookBlue)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Login with Facebook", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            if (fbAccount.isConnected) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Google / YouTube Login Button
-            Button(
-                onClick = {
-                    viewModel.loginWithGoogle()
-                    onLoginSuccess()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .testTag("google_login_button"),
+            // 2. YouTube Account Card with Quick Login & Edit
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF131D31)),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = YouTubeRed,
-                    contentColor = Color.White
-                )
+                border = androidx.compose.foundation.BorderStroke(1.dp, YouTubeRed.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "G",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = YouTubeRed
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(YouTubeRed),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("▶", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = ytAccount.accountName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = ytAccount.accountHandle,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { editingPlatform = StreamPlatform.YOUTUBE },
+                            modifier = Modifier.testTag("edit_yt_account_btn")
+                        ) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Account", tint = LiveCyan)
+                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = if (ytAccount.isConnected) "Connected to YouTube" else "Login with Google (YouTube)",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (ytAccount.isConnected) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Connected",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.loginWithGoogle()
+                            onLoginSuccess()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .testTag("google_login_button"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Login with Google (YouTube)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            if (ytAccount.isConnected) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Quick Continue to Home Button
+            // Enter Studio Directly Button
             OutlinedButton(
                 onClick = onLoginSuccess,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(48.dp)
                     .testTag("continue_dashboard_button"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF475569))
             ) {
-                Text(
-                    text = "Enter Broadcast Studio",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = "Enter Broadcast Studio", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             // Privacy Policy & Terms Links
             Row(
@@ -307,11 +337,7 @@ fun LoginScreen(
                         .padding(8.dp)
                         .testTag("privacy_policy_link")
                 )
-                Text(
-                    text = " • ",
-                    color = Color(0xFF64748B),
-                    fontSize = 14.sp
-                )
+                Text(text = " • ", color = Color(0xFF64748B), fontSize = 14.sp)
                 Text(
                     text = "Terms and Conditions",
                     fontSize = 13.sp,
@@ -325,60 +351,62 @@ fun LoginScreen(
         }
     }
 
-    // Privacy Policy Dialog
-    if (showPrivacyDialog) {
-        AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = {
-                Text(text = "Privacy Policy", fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = "LiveCast Studio respects your privacy. When using Facebook Live or YouTube Live streaming:\n\n" +
-                                "1. Token Storage: All authentication tokens and stream keys are saved locally on your device in secure app storage.\n" +
-                                "2. Screen Sharing: During screen live mode, only user-approved window and audio streams are broadcast.\n" +
-                                "3. Telemetry: We do not sell or transmit your personal livestream content to third parties.\n" +
-                                "4. Revocation: You can disconnect accounts and wipe local credentials at any time in Settings.",
-                        fontSize = 13.sp,
-                        color = Color(0xFFE2E8F0),
-                        lineHeight = 18.sp
-                    )
+    // Custom Account Editor Modal Dialog
+    editingPlatform?.let { platform ->
+        val acc = if (platform == StreamPlatform.FACEBOOK) fbAccount else ytAccount
+        CustomAccountDialog(
+            platform = platform,
+            initialName = acc.accountName,
+            initialHandle = acc.accountHandle,
+            initialDestination = acc.selectedDestination,
+            initialStreamKey = acc.streamKey,
+            initialRtmpUrl = acc.rtmpServerUrl,
+            onDismiss = { editingPlatform = null },
+            onSave = { name, handle, dest, key, rtmp ->
+                if (platform == StreamPlatform.FACEBOOK) {
+                    viewModel.accountManager.saveCustomFacebookAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateFacebookForm { it.copy(selectedAccount = "$name ($handle)", selectedDestination = dest) }
+                } else {
+                    viewModel.accountManager.saveCustomYouTubeAccount(name, handle, dest, key, rtmp)
+                    viewModel.updateYouTubeForm { it.copy(selectedChannel = dest) }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("Understood", color = LiveCyan)
-                }
+                editingPlatform = null
             }
         )
     }
 
-    // Terms and Conditions Dialog
+    // Privacy Policy Dialog
+    if (showPrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyDialog = false },
+            title = { Text(text = "Privacy Policy", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "LiveCast Studio saves your stream keys and account names locally on your Android device. Your stream credentials are never transmitted to third-party tracking servers.",
+                    fontSize = 13.sp,
+                    color = Color(0xFFE2E8F0)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyDialog = false }) { Text("OK", color = LiveCyan) }
+            }
+        )
+    }
+
+    // Terms Dialog
     if (showTermsDialog) {
         AlertDialog(
             onDismissRequest = { showTermsDialog = false },
-            title = {
-                Text(text = "Terms and Conditions", fontWeight = FontWeight.Bold)
-            },
+            title = { Text(text = "Terms and Conditions", fontWeight = FontWeight.Bold) },
             text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = "By broadcasting with LiveCast Studio, you agree to:\n\n" +
-                                "1. Content Compliance: You are solely responsible for content streamed to Facebook and YouTube, ensuring it conforms to Meta and Google Community Guidelines.\n" +
-                                "2. Copyright: Do not broadcast copyrighted music, movies, or video feeds without appropriate broadcasting rights.\n" +
-                                "3. Account Standing: Logging in through API does not waive platform enforcement. Infringing streams may result in platform penalties by Meta or YouTube directly.\n" +
-                                "4. Safe Usage: Avoid streaming sensitive personal details, credit cards, or passwords while in Screen Share mode.",
-                        fontSize = 13.sp,
-                        color = Color(0xFFE2E8F0),
-                        lineHeight = 18.sp
-                    )
-                }
+                Text(
+                    text = "Ensure all broadcasts comply with Meta Facebook and Google YouTube terms of service. Avoid broadcasting copyrighted audio or protected visuals without authorization.",
+                    fontSize = 13.sp,
+                    color = Color(0xFFE2E8F0)
+                )
             },
             confirmButton = {
-                TextButton(onClick = { showTermsDialog = false }) {
-                    Text("I Agree", color = LiveCyan)
-                }
+                TextButton(onClick = { showTermsDialog = false }) { Text("I Agree", color = LiveCyan) }
             }
         )
     }
