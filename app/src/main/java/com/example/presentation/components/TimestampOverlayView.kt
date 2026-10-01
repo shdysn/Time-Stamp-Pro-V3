@@ -1,5 +1,6 @@
 package com.example.presentation.components
 
+import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,7 +44,12 @@ fun TimestampOverlayView(
     orientationDegrees: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    Log.d(TAG, "Rendering live preview overlay for template: ${settings.templateType}")
+    val configuration = LocalConfiguration.current
+    val isSystemLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isSensorLandscape90 = !isSystemLandscape && orientationDegrees == 90
+    val isSensorLandscape270 = !isSystemLandscape && orientationDegrees == 270
+
+    Log.d(TAG, "Rendering live preview overlay for template: ${settings.templateType}, isSystemLandscape=$isSystemLandscape, orient=$orientationDegrees")
 
     val boxAlignment = when (settings.stampPosition) {
         StampPosition.TOP_LEFT -> Alignment.TopStart
@@ -53,14 +61,66 @@ fun TimestampOverlayView(
 
     val isBanner = settings.templateType == StampTemplateType.FULL_BANNER || settings.stampPosition == StampPosition.BOTTOM_BANNER
 
+    // Dynamic Alignment & Rotation to ensure:
+    // When mobile is in Landscape: Top Text is at the TOP, and Timestamp is at the BOTTOM!
+    val customTextAlign = when {
+        isSystemLandscape -> Alignment.TopCenter
+        isSensorLandscape90 -> Alignment.CenterEnd   // Right edge of portrait screen = TOP of landscape view
+        isSensorLandscape270 -> Alignment.CenterStart // Left edge of portrait screen = TOP of reverse landscape view
+        else -> Alignment.TopCenter
+    }
+
+    val customTextRotation = when {
+        isSystemLandscape -> 0f
+        isSensorLandscape90 -> 90f
+        isSensorLandscape270 -> 270f
+        else -> 0f
+    }
+
+    val customTextPadding = when {
+        isSystemLandscape -> Modifier.padding(top = 16.dp, start = 40.dp, end = 120.dp)
+        isSensorLandscape90 -> Modifier.padding(end = 16.dp, top = 40.dp, bottom = 120.dp)
+        isSensorLandscape270 -> Modifier.padding(start = 16.dp, top = 120.dp, bottom = 40.dp)
+        else -> Modifier.padding(top = 75.dp, start = 20.dp, end = 20.dp)
+    }
+
+    val stampAlign = when {
+        isSystemLandscape -> if (isBanner) Alignment.BottomCenter else Alignment.BottomStart
+        isSensorLandscape90 -> Alignment.CenterStart // Left edge of portrait screen = BOTTOM of landscape view
+        isSensorLandscape270 -> Alignment.CenterEnd  // Right edge of portrait screen = BOTTOM of reverse landscape view
+        else -> if (isBanner) Alignment.BottomCenter else boxAlignment
+    }
+
+    val stampRotation = when {
+        isSystemLandscape -> 0f
+        isSensorLandscape90 -> 90f
+        isSensorLandscape270 -> 270f
+        else -> 0f
+    }
+
+    val stampPadding = when {
+        isSystemLandscape -> Modifier.padding(start = 24.dp, bottom = 20.dp, end = 120.dp)
+        isSensorLandscape90 -> Modifier.padding(start = 20.dp, top = 40.dp, bottom = 120.dp)
+        isSensorLandscape270 -> Modifier.padding(end = 20.dp, top = 120.dp, bottom = 40.dp)
+        else -> {
+            val isTopPos = settings.stampPosition == StampPosition.TOP_LEFT || settings.stampPosition == StampPosition.TOP_RIGHT
+            Modifier.padding(
+                start = if (isBanner) 0.dp else 16.dp,
+                end = if (isBanner) 0.dp else 16.dp,
+                top = if (isTopPos) 80.dp else 16.dp,
+                bottom = if (isTopPos) 16.dp else (if (isBanner) 110.dp else 125.dp)
+            )
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. Optional Custom Text Banner at top - always horizontal, readable, and clean
+        // 1. Optional Custom Text Banner - always placed at TOP (in both portrait & landscape)
         if (settings.isCustomTextEnabled && settings.customText.isNotBlank()) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .padding(top = 75.dp, start = 20.dp, end = 20.dp),
+                    .align(customTextAlign)
+                    .then(customTextPadding)
+                    .rotate(customTextRotation),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
@@ -82,22 +142,13 @@ fun TimestampOverlayView(
             }
         }
 
-        // 2. Separate Distinct Stamp Composables - always horizontal, clean, and positioned above the bottom control bar
+        // 2. Watermark Stamp - always placed at BOTTOM (in both portrait & landscape)
         if (settings.isStampVisible) {
-            val isTopPos = settings.stampPosition == StampPosition.TOP_LEFT || settings.stampPosition == StampPosition.TOP_RIGHT
-            val topPad = if (isTopPos) 80.dp else 16.dp
-            val bottomPad = if (isBanner) 110.dp else 125.dp
-
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        start = if (isBanner) 0.dp else 16.dp,
-                        end = if (isBanner) 0.dp else 16.dp,
-                        top = topPad,
-                        bottom = if (isTopPos) 16.dp else bottomPad
-                    ),
-                contentAlignment = if (isBanner) Alignment.BottomCenter else boxAlignment
+                    .align(stampAlign)
+                    .then(stampPadding)
+                    .rotate(stampRotation)
             ) {
                 when (settings.templateType) {
                     StampTemplateType.CLASSIC_CARD -> {

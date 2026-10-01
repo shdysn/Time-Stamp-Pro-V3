@@ -1,6 +1,7 @@
 package com.example.presentation.screen
 
 import android.Manifest
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,12 +18,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,6 +52,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -176,11 +181,18 @@ fun CameraScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color.White))
         }
 
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
         // 4. Top Action Bar: Quick Orientation Control + Settings
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 32.dp)
+                .padding(
+                    start = if (isLandscape) 24.dp else 20.dp,
+                    end = if (isLandscape) 120.dp else 20.dp,
+                    top = if (isLandscape) 16.dp else 32.dp
+                )
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -244,61 +256,121 @@ fun CameraScreen(
             }
         }
 
-        // 5. Bottom Controls: Fast Front/Back switch, Shutter, and Gallery Thumbnail
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .background(Color.Black.copy(alpha = 0.35f))
-                .padding(horizontal = 28.dp, vertical = 28.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left: Device Gallery Shortcut / Last Photo Thumbnail
-            Box(
+        // 5. Camera Controls (Shutter, Switch, Gallery): Bottom in Portrait, Right side in Landscape
+        if (!isLandscape) {
+            Row(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, Color.White.copy(alpha = 0.7f), CircleShape)
-                    .clickable { viewModel.openDeviceGallery() },
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .padding(horizontal = 28.dp, vertical = 28.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (uiState.lastCapturedMedia != null) {
-                    AsyncImage(
-                        model = File(uiState.lastCapturedMedia!!.filePath),
-                        contentDescription = "Open Phone DCIM Gallery",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                // Left: Device Gallery Shortcut / Last Photo Thumbnail
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                        .clickable { viewModel.openDeviceGallery() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.lastCapturedMedia != null) {
+                        AsyncImage(
+                            model = File(uiState.lastCapturedMedia!!.filePath),
+                            contentDescription = "Open Phone DCIM Gallery",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        GalleryShortcutButton(onClick = { viewModel.openDeviceGallery() })
+                    }
+                }
+
+                // Center: Shutter Button
+                ShutterButton(
+                    onClick = { viewModel.capturePhoto() },
+                    isCapturing = uiState.isCapturing
+                )
+
+                // Right: Instant Front / Back Camera Switch Button
+                IconButton(
+                    onClick = {
+                        previewViewRef?.let { pv ->
+                            viewModel.toggleCamera(lifecycleOwner, pv)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(54.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Cameraswitch,
+                        contentDescription = if (uiState.isFrontCamera) "Switch to Back Camera" else "Switch to Front Camera",
+                        tint = if (uiState.isFrontCamera) AppColors.AccentGold else Color.White,
+                        modifier = Modifier.size(28.dp)
                     )
-                } else {
-                    GalleryShortcutButton(onClick = { viewModel.openDeviceGallery() })
                 }
             }
-
-            // Center: Shutter Button
-            ShutterButton(
-                onClick = { viewModel.capturePhoto() },
-                isCapturing = uiState.isCapturing
-            )
-
-            // Right: Instant Front / Back Camera Switch Button
-            IconButton(
-                onClick = {
-                    previewViewRef?.let { pv ->
-                        viewModel.toggleCamera(lifecycleOwner, pv)
-                    }
-                },
+        } else {
+            Column(
                 modifier = Modifier
-                    .size(54.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                    .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                    .fillMaxHeight()
+                    .width(108.dp)
+                    .align(Alignment.CenterEnd)
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .padding(vertical = 24.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.Cameraswitch,
-                    contentDescription = if (uiState.isFrontCamera) "Switch to Back Camera" else "Switch to Front Camera",
-                    tint = if (uiState.isFrontCamera) AppColors.AccentGold else Color.White,
-                    modifier = Modifier.size(28.dp)
+                // Top: Instant Front / Back Camera Switch Button
+                IconButton(
+                    onClick = {
+                        previewViewRef?.let { pv ->
+                            viewModel.toggleCamera(lifecycleOwner, pv)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(50.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Cameraswitch,
+                        contentDescription = if (uiState.isFrontCamera) "Switch to Back Camera" else "Switch to Front Camera",
+                        tint = if (uiState.isFrontCamera) AppColors.AccentGold else Color.White,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                // Center: Shutter Button
+                ShutterButton(
+                    onClick = { viewModel.capturePhoto() },
+                    isCapturing = uiState.isCapturing
                 )
+
+                // Bottom: Device Gallery Shortcut / Last Photo Thumbnail
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                        .clickable { viewModel.openDeviceGallery() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.lastCapturedMedia != null) {
+                        AsyncImage(
+                            model = File(uiState.lastCapturedMedia!!.filePath),
+                            contentDescription = "Open Phone DCIM Gallery",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        GalleryShortcutButton(onClick = { viewModel.openDeviceGallery() })
+                    }
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,7 @@ import com.example.presentation.navigation.AppNavigation
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         enableEdgeToEdge()
 
         val customDarkScheme = darkColorScheme(
