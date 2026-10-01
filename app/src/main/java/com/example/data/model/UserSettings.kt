@@ -1,0 +1,78 @@
+package com.example.data.model
+
+enum class StampPosition(val displayName: String) {
+    BOTTOM_LEFT("Bottom Left"),
+    BOTTOM_RIGHT("Bottom Right"),
+    TOP_LEFT("Top Left"),
+    TOP_RIGHT("Top Right"),
+    BOTTOM_BANNER("Full Bottom Banner")
+}
+
+enum class StampDesignStyle(val displayName: String, val description: String) {
+    CLASSIC_CARD("Classic Card", "Rounded dark card with colored border"),
+    MODERN_MINIMAL("Modern Minimal", "Clean translucent frame with vertical accent bar"),
+    TECH_HUD("Cyber Tech HUD", "Corner-bracket tactical frame with monospace data"),
+    OUTLINE_FRAME("Framed Outline", "Elegant border outline with subtle background"),
+    COMPACT_PILL("Compact Pill", "Rounded compact capsule for clean photos"),
+    BOTTOM_BANNER("Full Banner", "Full-width bottom strip across the picture")
+}
+
+enum class CoordinateFormat(val displayName: String) {
+    DECIMAL("Decimal (°DD.dddd)"),
+    DMS("DMS (° ' \" N/S)"),
+    UTM("UTM (Grid Zone)")
+}
+
+enum class AltitudeUnit(val displayName: String, val symbol: String) {
+    METERS("Meters", "m"),
+    FEET("Feet", "ft")
+}
+
+enum class StampFontSize(val displayName: String, val scale: Float) {
+    SMALL("Small", 0.85f),
+    MEDIUM("Medium", 1.0f),
+    LARGE("Large", 1.25f),
+    EXTRA_LARGE("Extra Large", 1.5f)
+}
+
+enum class StampColor(val displayName: String, val colorHex: Long) {
+    GOLD("Safety Gold", 0xFFFFC107),
+    WHITE("Crisp White", 0xFFFFFFFF),
+    CYBER_YELLOW("Vibrant Yellow", 0xFFFFEB3B),
+    SAFETY_ORANGE("High-Vis Orange", 0xFFFF5722),
+    NEON_GREEN("Survey Green", 0xFF00E676),
+    ELECTRIC_CYAN("Data Cyan", 0xFF00E5FF)
+}
+
+data class UserSettings(
+    val dateFormat: String = "yyyy-MM-dd HH:mm:ss",
+    val coordinateFormat: CoordinateFormat = CoordinateFormat.DECIMAL,
+    val altitudeUnit: AltitudeUnit = AltitudeUnit.METERS,
+    val stampPosition: StampPosition = StampPosition.BOTTOM_LEFT,
+    val templateType: StampTemplateType = StampTemplateType.CLASSIC_CARD,
+    val stampDesignStyle: StampDesignStyle = StampDesignStyle.CLASSIC_CARD,
+    val textColorHex: Long = 0xFFFFC107, // Safety Gold default
+    val backgroundOpacity: Float = 0.65f,
+    val fontSize: StampFontSize = StampFontSize.MEDIUM,
+    val showAddress: Boolean = true,
+    val showCoordinates: Boolean = true,
+    val showAltitude: Boolean = true,
+    val showCompass: Boolean = true,
+    val showTimestamp: Boolean = true,
+    val isStampVisible: Boolean = true, // Master hide/display toggle for timestamp stamp
+    val customText: String = "", // Custom user-entered text over photo
+    val isCustomTextEnabled: Boolean = false,
+    val customTextSize: Float = 24f,
+    val isCustomTextBold: Boolean = true,
+    val isCustomTextItalic: Boolean = false,
+    val isCustomTextUnderline: Boolean = false,
+    val customTextColorHex: Long = 0xFFFFFFFF,
+    val showProjectBadge: Boolean = false,
+    val projectName: String = "",
+    val inspectorName: String = "",
+    val customNotes: String = "",
+    val selectedTemplateId: String = "custom",
+    val saveOriginalCopy: Boolean = false,
+    val autoSaveToGallery: Boolean = true,
+    val shutterSound: Boolean = true
+)

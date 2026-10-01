@@ -1,0 +1,341 @@
+package com.example.storage
+
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
+import com.example.data.model.LocationData
+import com.example.data.model.TemplateData
+import com.example.data.model.UserSettings
+import com.example.database.AppDatabase
+import com.example.database.MediaEntity
+import com.example.timestamp.DateFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class FileManager(private val context: Context) {
+
+    private val mediaDao = AppDatabase.getDatabase(context).mediaDao()
+
+    private val imagesDir: File
+        get() {
+            val dir = File(context.filesDir, "images")
+            if (!dir.exists()) dir.mkdirs()
+            return dir
+        }
+
+    var lastSavedDcimUri: Uri? = null
+        private set
+
+    suspend fun saveCapturedPhoto(
+        stampedBitmap: Bitmap,
+        originalBitmap: Bitmap?,
+        settings: UserSettings,
+        location: LocationData,
+        heading: Float,
+        timestampMillis: Long = System.currentTimeMillis()
+    ): MediaEntity = withContext(Dispatchers.IO) {
+        val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date(timestampMillis))
+        val fileName = "STAMP_$dateStr.jpg"
+        val stampedFile = File(imagesDir, fileName)
+
+        // 1. Save local thumbnail / fast cache in internal storage for instant viewfinder preview
+        FileOutputStream(stampedFile).use { out ->
+            stampedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+        }
+
+        // 2. Direct save ONLY the stamped photo to phone's public DCIM Gallery (exactly 1 photo per shot)
+        val dcimUri = saveDirectToGallery(stampedBitmap, fileName, timestampMillis, location)
+        lastSavedDcimUri = dcimUri
+
+        // 3. Optional private internal backup only (NEVER saved to public gallery to prevent duplicate images)
+        var originalPath: String? = null
+        if (settings.saveOriginalCopy && originalBitmap != null) {
+            val origFileName = "ORIG_$dateStr.jpg"
+            val origFile = File(imagesDir, origFileName)
+            FileOutputStream(origFile).use { out ->
+                originalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            originalPath = origFile.absolutePath
+        }
+
+        // Clean older cached thumbnails if limit exceeded to save device storage
+        cleanCacheIfExceeded()
+
+        val template = TemplateData.getById(settings.selectedTemplateId)
+        val formattedDate = DateFormatter.format(timestampMillis, settings.dateFormat)
+
+        val entity = MediaEntity(
+            filePath = stampedFile.absolutePath,
+            originalFilePath = originalPath,
+            fileName = fileName,
+            timestampMillis = timestampMillis,
+            formattedDate = formattedDate,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            altitude = location.altitude,
+            accuracy = location.accuracy,
+            address = location.address,
+            compassDegrees = heading,
+            templateId = template.id,
+            templateName = template.name,
+            projectName = settings.projectName,
+            inspectorName = settings.inspectorName,
+            notes = settings.customNotes,
+            isMockGps = location.isMock,
+            fileSizeBytes = stampedFile.length(),
+            width = stampedBitmap.width,
+            height = stampedBitmap.height
+        )
+
+        val id = mediaDao.insertMedia(entity)
+        return@withContext entity.copy(id = id)
+    }
+
+    /**
+     * Saves picture directly into device's media gallery (DCIM / Camera)
+     * so it immediately appears in Google Photos, Samsung Gallery, etc.
+     */
+    fun saveDirectToGallery(
+        bitmap: Bitmap,
+        fileName: String,
+        timestampMillis: Long,
+        location: LocationData? = null
+    ): Uri? {
+        val resolver = context.contentResolver
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ (API 29+): Use Scoped Storage MediaStore directly in DCIM/Camera
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.DATE_ADDED, timestampMillis / 1000)
+                put(MediaStore.Images.Media.DATE_TAKEN, timestampMillis)
+                // DIRECTORY_DCIM + "/Camera" places it directly into the phone's primary Camera Roll
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_DCIM + "/Camera")
+                if (location != null && (location.latitude != 0.0 || location.longitude != 0.0)) {
+                    put(MediaStore.Images.Media.LATITUDE, location.latitude)
+                    put(MediaStore.Images.Media.LONGITUDE, location.longitude)
+                }
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+
+            var uri: Uri? = try {
+                resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            } catch (_: Exception) {
+                null
+            }
+
+            // Fallback to DCIM root if DCIM/Camera fails
+            if (uri == null) {
+                try {
+                    contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_DCIM)
+                    uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                } catch (_: Exception) {
+                    uri = null
+                }
+            }
+
+            // Fallback to Pictures/TimestampCameraPro if DCIM is strictly restricted
+            if (uri == null) {
+                try {
+                    contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/TimestampCameraPro")
+                    uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                } catch (_: Exception) {
+                    uri = null
+                }
+            }
+
+            if (uri != null) {
+                try {
+                    resolver.openOutputStream(uri)?.use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                    }
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(uri, contentValues, null, null)
+                    return uri
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        } else {
+            // Android 9 and below: write directly to public DCIM/Camera directory
+            try {
+                val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                val cameraDir = File(publicDir, "Camera").takeIf { it.exists() || it.mkdirs() }
+                    ?: publicDir
+                if (!cameraDir.exists()) cameraDir.mkdirs()
+
+                val targetFile = File(cameraDir, fileName)
+                FileOutputStream(targetFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                }
+
+                var scannedUri: Uri? = null
+                MediaScannerConnection.scanFile(
+                    context,
+                    arrayOf(targetFile.absolutePath),
+                    arrayOf("image/jpeg")
+                ) { _, uri ->
+                    scannedUri = uri
+                }
+                return scannedUri ?: Uri.fromFile(targetFile)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return null
+    }
+
+    /**
+     * Opens the phone's native gallery app (Google Photos, Samsung Gallery, etc.)
+     * directly to view captured DCIM photos.
+     */
+    fun openPhoneGallery(photoUri: Uri? = null) {
+        if (photoUri != null) {
+            try {
+                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(photoUri, "image/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(viewIntent)
+                return
+            } catch (_: Exception) {}
+        }
+
+        try {
+            val galleryIntent = Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(galleryIntent)
+        } catch (_: Exception) {
+            try {
+                val altIntent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_GALLERY).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(altIntent)
+            } catch (_: Exception) {
+                // If neither intent resolves, open default content picker
+                try {
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                        type = "image/*"
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(fallbackIntent)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    suspend fun deletePhoto(media: MediaEntity) = withContext(Dispatchers.IO) {
+        try {
+            val file = File(media.filePath)
+            if (file.exists()) file.delete()
+            media.originalFilePath?.let {
+                val orig = File(it)
+                if (orig.exists()) orig.delete()
+            }
+            mediaDao.deleteMedia(media)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun exportToGallery(media: MediaEntity): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val file = File(media.filePath)
+            if (!file.exists()) return@withContext false
+
+            val resolver = context.contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, media.fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/TimestampCameraPro")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: return@withContext false
+
+            resolver.openOutputStream(uri)?.use { out ->
+                file.inputStream().use { input ->
+                    input.copyTo(out)
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+            }
+            return@withContext true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext false
+        }
+    }
+
+    fun getShareIntent(media: MediaEntity): Intent {
+        val file = File(media.filePath)
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val caption = buildString {
+            append("📸 Timestamp Camera Pro Record\n")
+            append("📅 ${media.formattedDate}\n")
+            append("📍 ${media.address}\n")
+            append("🌐 Lat: ${String.format(Locale.US, "%.5f", media.latitude)}, Lng: ${String.format(Locale.US, "%.5f", media.longitude)}\n")
+            if (media.projectName.isNotBlank()) append("🏗 Project: ${media.projectName}\n")
+            if (media.inspectorName.isNotBlank()) append("👤 By: ${media.inspectorName}\n")
+            if (media.notes.isNotBlank()) append("📝 Notes: ${media.notes}\n")
+        }
+
+        return Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, caption)
+            putExtra(Intent.EXTRA_SUBJECT, "Timestamp Photo: ${media.projectName}")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    suspend fun getStorageUsageBytes(): Long = withContext(Dispatchers.IO) {
+        var total = 0L
+        imagesDir.listFiles()?.forEach { file ->
+            total += file.length()
+        }
+        return@withContext total
+    }
+
+    private fun cleanCacheIfExceeded() {
+        try {
+            val files = imagesDir.listFiles() ?: return
+            if (files.size > 15) {
+                val sorted = files.sortedBy { it.lastModified() }
+                val toDeleteCount = files.size - 15
+                for (i in 0 until toDeleteCount) {
+                    sorted[i].delete()
+                }
+            }
+        } catch (_: Exception) {}
+    }
+}
